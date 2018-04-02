@@ -1195,6 +1195,12 @@ double GNormalDistributionsTransform::computeStepLengthMT(const Eigen::Matrix<do
 
 	Eigen::Matrix<double, 6, 1> x_t;
 
+	FILE *fp = fopen("eigen_checker.txt", "a");
+	if (fp == NULL) {
+	  fprintf(stderr, "fopen error.\n");
+	  exit(1);
+	}
+
 	if (d_phi_0 >= 0) {
 		if (d_phi_0 == 0)
 			return 0;
@@ -1226,10 +1232,20 @@ double GNormalDistributionsTransform::computeStepLengthMT(const Eigen::Matrix<do
 
 	x_t = x + step_dir * a_t;
 
+	// fprintf(fp, "%lf, %lf, %lf, %lf, %lf, %lf\n", x_t(0), x_t(1), x_t(2), x_t(3), x_t(4), x_t(5));
+
 	final_transformation_ = (Eigen::Translation<float, 3>(static_cast<float>(x_t(0)), static_cast<float>(x_t(1)), static_cast<float>(x_t(2))) *
 								Eigen::AngleAxis<float>(static_cast<float>(x_t(3)), Eigen::Vector3f::UnitX()) *
 								Eigen::AngleAxis<float>(static_cast<float>(x_t(4)), Eigen::Vector3f::UnitY()) *
 								Eigen::AngleAxis<float>(static_cast<float>(x_t(5)), Eigen::Vector3f::UnitZ())).matrix();
+
+	// fprintf(fp, "\nfinal_transformation_\n");
+	// fprintf(fp, "%lf, %lf, %lf, %lf\n", final_transformation_(0,0), final_transformation_(0,1), final_transformation_(0,2), final_transformation_(0,3));
+	// fprintf(fp, "%lf, %lf, %lf, %lf\n", final_transformation_(1,0), final_transformation_(1,1), final_transformation_(1,2), final_transformation_(1,3))
+	// fprintf(fp, "%lf, %lf, %lf, %lf\n", final_transformation_(2,0), final_transformation_(2,1), final_transformation_(2,2), final_transformation_(2,3));
+	// fprintf(fp, "%lf, %lf, %lf, %lf\n", final_transformation_(3,0), final_transformation_(3,1), final_transformation_(3,2), final_transformation_(3,3));
+	// fprintf(fp, "-------------------------------------------\n\n");
+	// fclose(fp);
 
 	transformPointCloud(x_, y_, z_, trans_x, trans_y, trans_z, points_num, final_transformation_);
 

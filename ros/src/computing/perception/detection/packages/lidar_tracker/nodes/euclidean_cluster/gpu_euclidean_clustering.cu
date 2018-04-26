@@ -19,6 +19,8 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include <chrono>
+
 #define MAX_SHARED_SIZE 2048
 #define BLOCK_SIZE_X 1024
 
@@ -48,11 +50,16 @@ GpuEuclideanCluster::GpuEuclideanCluster()
 	min_cluster_pts_ = 0;
 	max_cluster_pts_ = 1000000000;
 	cluster_num_ = 0;
+	d_time_ = 0.0;
+	m_time_ = 0.0;
 }
 
 void GpuEuclideanCluster::setInputPoints(float *x, float *y, float *z, int size)
 {
 	size_ = size;
+	
+	m_start_ = std::chrono::system_clock::now();
+
 	checkCudaErrors(cudaMalloc(&x_, size_ * sizeof(float)));
 	checkCudaErrors(cudaMalloc(&y_, size_ * sizeof(float)));
 	checkCudaErrors(cudaMalloc(&z_, size_ * sizeof(float)));
@@ -63,6 +70,9 @@ void GpuEuclideanCluster::setInputPoints(float *x, float *y, float *z, int size)
 
 	checkCudaErrors(cudaMalloc(&cluster_indices_, size_ * sizeof(int)));
 	cluster_indices_host_ = (int*)malloc(size_ * sizeof(int));
+
+	m_end_ = std::chrono::system_clock::now();
+	m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
 }
 
 void GpuEuclideanCluster::setThreshold(double threshold)
@@ -593,21 +603,34 @@ extern "C" __global__ void clustersIntersecCheck(int *cluster_matrix, int *chang
 
 void GpuEuclideanCluster::extractClusters()
 {
-	int block_x, grid_x;
+	std::chrono::time_point<std::chrono::system_clock> ss0, se0, ss1, se1, ss2, se2, ss3, se3;
+	double st0, st1, st2, st3;
 
+	int block_x, grid_x;
 	block_x = (size_ > BLOCK_SIZE_X) ? BLOCK_SIZE_X : size_;
 	grid_x = (size_ - 1) / block_x + 1;
 
 	int *cluster_offset;
 	int cluster_num, old_cluster_num;
 
+	d_start_ = std::chrono::system_clock::now();
+
 	pclEuclideanInitialize<<<grid_x, block_x>>>(cluster_indices_, size_);
+
 	checkCudaErrors(cudaDeviceSynchronize());
+	
+	d_end_ = std::chrono::system_clock::now();
+	d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
 
 	old_cluster_num = cluster_num = size_;
 
+	m_start_ = std::chrono::system_clock::now();
 	checkCudaErrors(cudaMalloc(&cluster_offset, (size_ + 1) * sizeof(int)));
 	checkCudaErrors(cudaMemset(cluster_offset, 0, (size_ + 1) * sizeof(int)));
+	m_end_ = std::chrono::system_clock::now();
+	m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
+
+	d_start_ = std::chrono::system_clock::now();
 	blockLabelling<<<grid_x, block_x>>>(x_, y_, z_, cluster_indices_, size_, threshold_);
 	clusterMark<<<grid_x, block_x>>>(cluster_indices_, cluster_offset, size_);
 	exclusiveScan(cluster_offset, size_ + 1, &cluster_num);
@@ -618,17 +641,33 @@ void GpuEuclideanCluster::extractClusters()
 	clusterCollector<<<grid_x, block_x>>>(cluster_indices_, cluster_list, cluster_offset, size_);
 	checkCudaErrors(cudaDeviceSynchronize());
 
+	d_end_ = std::chrono::system_clock::now();
+	d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
+
 	int *cluster_matrix;
 	int *new_cluster_matrix;
 
+	m_start_ = std::chrono::system_clock::now();
 	checkCudaErrors(cudaMalloc(&cluster_matrix, cluster_num * cluster_num * sizeof(int)));
 	checkCudaErrors(cudaMemset(cluster_matrix, 0, cluster_num * cluster_num * sizeof(int)));
 	checkCudaErrors(cudaDeviceSynchronize());
-
+	
 	checkCudaErrors(cudaMalloc(&new_cluster_list, cluster_num * sizeof(int)));
+
+	m_end_ = std::chrono::system_clock::now();
+	m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
+
+	sub_start_ = std::chrono::system_clock::now();
+	d_start_ = std::chrono::system_clock::now();
 
 	buildClusterMatrix<<<grid_x, block_x>>>(x_, y_, z_, cluster_indices_, cluster_matrix, cluster_offset, size_, cluster_num, threshold_);
 	checkCudaErrors(cudaDeviceSynchronize());
+
+	d_end_ = std::chrono::system_clock::now();
+	d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
+
+	sub_end_ = std::chrono::system_clock::now();
+	sub_time_ += std::chrono::duration_cast<std::chrono::microseconds>(sub_end_ - sub_start_).count() / 1000.0;
 
 	int block_x2 = 0, grid_x2 = 0;
 
@@ -649,8 +688,13 @@ void GpuEuclideanCluster::extractClusters()
 		block_x2 = (cluster_num > BLOCK_SIZE_X) ? BLOCK_SIZE_X : cluster_num;
 		grid_x2 = (cluster_num - 1)/block_x2 + 1;
 
+		d_start_ = std::chrono::system_clock::now();
+
 		mergeSelfClusters<<<grid_x2, block_x2>>>(cluster_matrix, cluster_list, cluster_num, changed);
 		checkCudaErrors(cudaDeviceSynchronize());
+
+		d_end_ = std::chrono::system_clock::now();
+		d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
 
 		int base_row = 1, base_column = 0;
 		int sub_matrix_offset_row = 2, sub_matrix_offset_col = 2;
@@ -669,13 +713,18 @@ void GpuEuclideanCluster::extractClusters()
 #ifdef SERIAL
 			//Merge clusters in each sub-matrix by moving from top to bottom of the similarity sub-matrix
 			for (int shift_level = 0; !(*changed) && shift_level < sub_matrix_col; shift_level++) {
+				d_start_ = std::chrono::system_clock::now();
+
 				mergeInterClusters<<<grid_x2, block_x2>>>(cluster_matrix, cluster_list,
-																shift_level,
+				shift_level,
 																base_row, base_column,
 																sub_matrix_row, sub_matrix_col,
 																sub_matrix_offset_row, sub_matrix_offset_col,
 																cluster_num, changed);
 				checkCudaErrors(cudaDeviceSynchronize());
+
+				d_end_ = std::chrono::system_clock::now();
+				d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
 			}
 #else
 			int grid_y2 = sub_matrix_row;
@@ -684,6 +733,8 @@ void GpuEuclideanCluster::extractClusters()
 			dim3 grid_size(grid_x2, grid_y2, 1);
 
 			*changed_diag = -1;
+
+			d_start_ = std::chrono::system_clock::now();
 
 			clustersIntersecCheck<<<grid_size, block_size>>>(cluster_matrix, changed_diag,
 																base_row, base_column,
@@ -701,6 +752,9 @@ void GpuEuclideanCluster::extractClusters()
 															cluster_num, changed);
 				checkCudaErrors(cudaDeviceSynchronize());
 			}
+			
+			d_end_ = std::chrono::system_clock::now();
+			d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
 
 #endif
 			base_row += sub_matrix_row;
@@ -713,11 +767,24 @@ void GpuEuclideanCluster::extractClusters()
 		max_base_row = base_row;
 
 		if (*changed) {
+			d_start_ = std::chrono::system_clock::now();
+
 			reflexClusterChanges<<<grid_x, block_x>>>(cluster_indices_, cluster_offset, cluster_list, size_);
+
+			d_end_ = std::chrono::system_clock::now();
+			d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
+
+			m_start_ = std::chrono::system_clock::now();
+
 			checkCudaErrors(cudaMemset(cluster_offset, 0, (size_ + 1) * sizeof(int)));
+
+			m_end_ = std::chrono::system_clock::now();
+			m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
 
 			block_x2 = (cluster_num > BLOCK_SIZE_X) ? BLOCK_SIZE_X : cluster_num;
 			grid_x2 = (cluster_num - 1) / block_x2 + 1;
+
+			d_start_ = std::chrono::system_clock::now();
 
 			clusterMark<<<grid_x2, block_x2>>>(cluster_list, cluster_offset, cluster_num);
 
@@ -726,10 +793,24 @@ void GpuEuclideanCluster::extractClusters()
 			clusterCollector<<<grid_x2, block_x2>>>(cluster_list, new_cluster_list, cluster_offset, old_cluster_num);
 			checkCudaErrors(cudaDeviceSynchronize());
 
+			d_end_ = std::chrono::system_clock::now();
+			d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
+
+			m_start_ = std::chrono::system_clock::now();
+
 			checkCudaErrors(cudaMalloc(&new_cluster_matrix, cluster_num * cluster_num * sizeof(int)));
 			checkCudaErrors(cudaMemset(new_cluster_matrix, 0, cluster_num * cluster_num * sizeof(int)));
+
+			m_end_ = std::chrono::system_clock::now();
+			m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
+
+			d_start_ = std::chrono::system_clock::now();
+
 			rebuildClusterMatrix<<<grid_x2, block_x2>>>(cluster_matrix, cluster_list, new_cluster_matrix, cluster_offset, old_cluster_num, cluster_num);
 			checkCudaErrors(cudaDeviceSynchronize());
+
+			d_end_ = std::chrono::system_clock::now();
+			d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
 
 			checkCudaErrors(cudaFree(cluster_matrix));
 			cluster_matrix = new_cluster_matrix;
@@ -742,10 +823,20 @@ void GpuEuclideanCluster::extractClusters()
 	cluster_num_ = cluster_num;
 
 	//Reset all cluster indexes to make them start from 0
+	d_start_ = std::chrono::system_clock::now();
+
 	resetClusterIndexes<<<grid_x, block_x>>>(cluster_indices_, cluster_offset, size_);
 	checkCudaErrors(cudaDeviceSynchronize());
 
+	d_end_ = std::chrono::system_clock::now();
+	d_time_ += std::chrono::duration_cast<std::chrono::microseconds>(d_end_ - d_start_).count() / 1000.0;
+
+	m_start_ = std::chrono::system_clock::now();
+
 	checkCudaErrors(cudaMemcpy(cluster_indices_host_, cluster_indices_, size_ * sizeof(int), cudaMemcpyDeviceToHost));
+
+	m_end_ = std::chrono::system_clock::now();
+	m_time_ += std::chrono::duration_cast<std::chrono::microseconds>(m_end_ - m_start_).count() / 1000.0;
 
 	checkCudaErrors(cudaFree(cluster_matrix));
 	checkCudaErrors(cudaFree(cluster_list));

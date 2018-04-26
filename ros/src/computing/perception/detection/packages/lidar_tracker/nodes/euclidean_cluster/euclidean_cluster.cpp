@@ -4,6 +4,7 @@
 #include <sstream>
 #include <limits>
 #include <cmath>
+#include <chrono>
 
 #include <ros/ros.h>
 
@@ -136,6 +137,9 @@ static double       _cluster_merge_threshold;
 
 static bool         _use_gpu;
 static std::chrono::system_clock::time_point _start, _end;
+
+double _d_time, _m_time;
+double _after_time;
 
 std::vector<std::vector<geometry_msgs::Point>> _way_area_points;
 std::vector<cv::Scalar> _colors;
@@ -375,7 +379,6 @@ std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZ>:
 	std::vector<ClusterPtr> clusters;
 
 	//Convert input point cloud to vectors of x, y, and z
-
 	int size = in_cloud_ptr->points.size();
 
 	if (size == 0)
@@ -397,12 +400,21 @@ std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZ>:
 
 	GpuEuclideanCluster gecl_cluster;
 
+	gecl_cluster.d_time_ = 0.0;
+	gecl_cluster.m_time_ = 0.0;
+	gecl_cluster.sub_time_ = 0.0;
+
 	gecl_cluster.setInputPoints(tmp_x, tmp_y, tmp_z, size);
 	gecl_cluster.setThreshold(in_max_cluster_distance);
 	gecl_cluster.setMinClusterPts (_cluster_size_min);
 	gecl_cluster.setMaxClusterPts (_cluster_size_max);
+	std::cout << "hoge" << std::endl;
 	gecl_cluster.extractClusters();
 	std::vector<GpuEuclideanCluster::GClusterIndex> cluster_indices = gecl_cluster.getOutput();
+
+	_d_time += gecl_cluster.d_time_;
+	_m_time += gecl_cluster.m_time_;
+	_after_time += gecl_cluster.sub_time_;
 
 	unsigned int k = 0;
 
@@ -579,6 +591,17 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_segments_array(5);
 
+	FILE* euc_fp;
+	if (_use_gpu)
+		euc_fp = fopen("/home/autoware/euc_gpu.csv", "a");
+	else
+		euc_fp = fopen("/home/autoware/euc_cpu.csv", "a");
+
+	std::chrono::time_point<std::chrono::system_clock> start, end;
+	int count = 0;
+	double total_time = 0.0;
+	double sub_time;
+
 	for(unsigned int i=0; i<cloud_segments_array.size(); i++)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -601,21 +624,37 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 		else													{cloud_segments_array[4]->points.push_back (current_point);}
 	}
 
+	_d_time = 0.0;
+	_m_time = 0.0;
+	_after_time = 0.0;
+
 	std::vector <ClusterPtr> all_clusters;
 	for(unsigned int i=0; i<cloud_segments_array.size(); i++)
 	{
 #ifdef GPU_CLUSTERING
     std::vector<ClusterPtr> local_clusters;
 		if (_use_gpu) {
+			start = std::chrono::system_clock::now();		
 			local_clusters = clusterAndColorGpu(cloud_segments_array[i], out_cloud_ptr, in_out_boundingbox_array, in_out_centroids, _clustering_thresholds[i]);
+			end = std::chrono::system_clock::now();
 		} else {
+			start = std::chrono::system_clock::now();
 			local_clusters = clusterAndColor(cloud_segments_array[i], out_cloud_ptr, in_out_boundingbox_array, in_out_centroids, _clustering_thresholds[i]);
+			end = std::chrono::system_clock::now();
 		}
+		
+		sub_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+		total_time += sub_time;
+		count++;
+
 #else
 		std::vector<ClusterPtr> local_clusters = clusterAndColor(cloud_segments_array[i], out_cloud_ptr, in_out_boundingbox_array, in_out_centroids, _clustering_thresholds[i]);
 #endif
 		all_clusters.insert(all_clusters.end(), local_clusters.begin(), local_clusters.end());
 	}
+
+	fprintf(euc_fp, "%lf,%lf,%lf,%lf\n", total_time, _d_time, _m_time, _after_time);
+	fclose(euc_fp);
 
 	//Clusters can be merged or checked in here
 	//....

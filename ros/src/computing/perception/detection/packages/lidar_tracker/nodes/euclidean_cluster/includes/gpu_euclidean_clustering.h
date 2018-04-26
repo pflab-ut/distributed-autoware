@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 class GpuEuclideanCluster {
 public:
@@ -17,6 +18,9 @@ public:
 		float *z;
 		int size;
 	} SamplePointListXYZ;
+
+	double d_time_, m_time_, sub_time_;
+	std::chrono::time_point<std::chrono::system_clock> d_start_, d_end_, m_start_, m_end_, sub_start_, sub_end_;
 
 	GpuEuclideanCluster();
 
@@ -42,7 +46,6 @@ private:
 	int min_cluster_pts_;
 	int max_cluster_pts_;
 	int cluster_num_;
-
 
 	void exclusiveScan(int *input, int ele_num, int *sum);
 };

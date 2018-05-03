@@ -437,6 +437,21 @@ static void map_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr map_ptr(new pcl::PointCloud<pcl::PointXYZ>(map));
 
+	static int count = 0;
+
+	char filename[128] = "/home/autoware/map_";
+	strcat(filename, itoa(count));
+	strcat(filename, ".txt");
+	
+	FILE *fp = fopen(filename, "w");
+
+	pcl::PointXYZ *tmp = map_ptr->points.data();
+
+	for (int i = 0; i < map_ptr->size(); i++) {
+		fprintf(fp, "%lf %lf\n", tmp[i].x, tmp[i].y);
+	}
+
+	fclose(fp);
 
 // Setting point cloud to be aligned to.
     if (_method_type == MethodType::PCL_GENERIC)
@@ -928,6 +943,22 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
         getFitnessScore_end;
     static double align_time, getFitnessScore_time = 0.0;
 
+	char filename[128] = "/home/autoware/input_";
+	static int count = 0;
+
+	strcat(filename, itoa(count));
+	strcat(filename, ".txt");
+
+	FILE *fp = fopen(filename, "w");
+
+	pcl::PointXYZ *tmp = filtered_scan_ptr->points.data();
+
+	for (int i = 0; i < filtered_scan_ptr->size(); i++) {
+		fprintf(filename, "%lf %lf\n", tmp[i].x, tmp[i].y);
+	}
+
+	fclose(fp);
+	
     pthread_mutex_lock(&mutex);
 
     if (_method_type == MethodType::PCL_GENERIC)

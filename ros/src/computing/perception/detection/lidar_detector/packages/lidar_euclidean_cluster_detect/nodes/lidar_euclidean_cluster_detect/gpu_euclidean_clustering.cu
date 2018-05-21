@@ -627,6 +627,41 @@ void GpuEuclideanCluster::extractClusters()
 
 	checkCudaErrors(cudaMalloc(&new_cluster_list, cluster_num * sizeof(int)));
 
+	char filename[128];
+	static int count = 0;
+
+	sprintf(filename, "%s_%d.txt", "/home/autoware/bcm_param", count);
+
+	count++;
+
+	FILE *fp_param = fopen(filename, "w");
+
+	fprintf(fp_param, "%d\n", size_);
+	fprintf(fp_param, "%d\n", cluster_num);
+	fprintf(fp_param, "%lf\n", threshold_);
+
+	for (int i = 0; i < size_; i++) {
+	  fprintf(fp_param, "%f\n", x_[i]);
+	}
+
+	for (int i = 0; i < size_; i++) {
+	  fprintf(fp_param, "%f\n", y_[i]);
+	}
+
+	for (int i = 0; i < size_; i++) {
+	  fprintf(fp_param, "%f\n", z_[i]);
+	}
+	
+	for (int i = 0; i < size_ + 1; i++) {
+	  fprintf(fp_param, "%d\n", cluster_indices_[i]);
+	}
+
+	for (int i = 0; i < size_ + 1; i++) {
+	  fprintf(fp_param, "%d\n", cluster_offset[i]);
+	}
+
+	fclose(fp_param);
+
 	buildClusterMatrix<<<grid_x, block_x>>>(x_, y_, z_, cluster_indices_, cluster_matrix, cluster_offset, size_, cluster_num, threshold_);
 	checkCudaErrors(cudaDeviceSynchronize());
 

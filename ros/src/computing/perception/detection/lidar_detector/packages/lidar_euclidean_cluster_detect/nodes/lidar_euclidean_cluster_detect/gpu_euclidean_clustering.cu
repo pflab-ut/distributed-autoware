@@ -627,6 +627,39 @@ void GpuEuclideanCluster::extractClusters()
 
 	checkCudaErrors(cudaMalloc(&new_cluster_list, cluster_num * sizeof(int)));
 
+	char filename[128];
+	static int count = 0;
+	sprintf(filename, "/home/autoware/bcm_param_%d.txt", count);
+	count++;
+	FILE *param_fp = fopen(filename, "w");
+	
+	float *tmp_x, *tmp_y, *tmp_z;
+	tmp_x = (float*)malloc(sizeof(float)*size_);
+	tmp_y = (float*)malloc(sizeof(float)*size_);
+	tmp_z = (float*)malloc(sizeof(float)*size_);
+
+	checkCudaErrors(cudaMemcpy(tmp_x, x_, size_ * sizeof(float), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(tmp_y, y_, size_ * sizeof(float), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(tmp_z, z_, size_ * sizeof(float), cudaMemcpyDeviceToHost));
+
+	int *tmp_indices, *tmp_offset;
+	tmp_indices = (int*)malloc(size_*sizeof(int));
+	tmp_offset = (int*)malloc(size_*sizeof(int));
+	
+	checkCudaErrors(cudaMemcpy(tmp_indices, cluster_indices_, size_ * sizeof(int), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(tmp_offset, cluster_offset, size_ * sizeof(int), cudaMemcpyDeviceToHost));
+	fprintf(param_fp, "%d\n", size_);
+	fprintf(param_fp, "%lf\n", threshold_);
+	// for (int i = 0; i < size_; i++) {
+	//	fprintf(param_fp, "%f\n", tmp_x[i]);
+	//	fprintf(param_fp, "%f\n", tmp_y[i]);
+	//	fprintf(param_fp, "%f\n", tmp_z[i]);
+	//}
+
+    fprintf(param_fp, "%d\n\n", cluster_num);
+
+	fclose(param_fp);
+		
 	buildClusterMatrix<<<grid_x, block_x>>>(x_, y_, z_, cluster_indices_, cluster_matrix, cluster_offset, size_, cluster_num, threshold_);
 	checkCudaErrors(cudaDeviceSynchronize());
 

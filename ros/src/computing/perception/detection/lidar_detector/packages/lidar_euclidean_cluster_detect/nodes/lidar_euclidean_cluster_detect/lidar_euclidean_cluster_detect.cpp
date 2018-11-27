@@ -48,6 +48,9 @@
 #include <std_msgs/MultiArrayLayout.h>
 #include <std_msgs/MultiArrayDimension.h>
 
+// add
+#include <std_msgs/Bool.h>
+
 #include "autoware_msgs/centroids.h"
 #include "autoware_msgs/CloudCluster.h"
 #include "autoware_msgs/CloudClusterArray.h"
@@ -106,6 +109,9 @@ ros::Publisher _pub_jsk_hulls;
 ros::Publisher _pub_grid_map;
 
 ros::Publisher _pub_detected_objects;
+
+// add
+ros::Publisher fin_pub;
 
 ros::ServiceClient _vectormap_server;
 
@@ -1016,7 +1022,7 @@ void removePointsUpTo(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 
 void velodyne_callback(const sensor_msgs::PointCloud2ConstPtr& in_sensor_cloud)
 {
-  //_start = std::chrono::system_clock::now();
+  _start = std::chrono::system_clock::now();
 
   if (!_using_sensor_cloud)
   {
@@ -1100,8 +1106,19 @@ void velodyne_callback(const sensor_msgs::PointCloud2ConstPtr& in_sensor_cloud)
 
     _using_sensor_cloud = false;
   }
-  //_end = std::chrono::system_clock::now();
-  // double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(_end-_start).count();
+  _end = std::chrono::system_clock::now();
+  double elapsed = std::chrono::duration_cast<std::chrono::microseconds>(_end-_start).count() / 1000.0;
+
+  std_msgs::Bool msg;
+  msg.data = false;
+  fin_pub.publish(msg);
+
+  // Output whole execution time
+  // FILE *fp = fopen("/home/nvidia/hitachi/euc_time.csv", "a");
+  // fprintf(fp, "%lf\n", elapsed);
+  // fflush(fp);
+  // fclose(fp);
+
   // ROS_INFO("Euclidean Clustering : %f", elapsed);
 }
 
@@ -1222,6 +1239,9 @@ int main(int argc, char** argv)
   ROS_INFO("output pictograms topic: %s", "cluster_id");
 
   _pub_grid_map = h.advertise<grid_map_msgs::GridMap>("grid_map_wayarea", 1, true);
+
+  // add
+  fin_pub = h.advertise<std_msgs::Bool>("fin_msg", 10);
 
   std::string points_topic, gridmap_topic;
 

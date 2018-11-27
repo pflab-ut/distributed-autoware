@@ -166,6 +166,9 @@ static geometry_msgs::PoseStamped localizer_pose_msg;
 static ros::Publisher estimate_twist_pub;
 static geometry_msgs::TwistStamped estimate_twist_msg;
 
+// add
+static ros::Publisher fin_pub;
+
 static ros::Duration scan_duration;
 
 static double exe_time = 0.0;
@@ -1352,6 +1355,16 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     time_ndt_matching.data = exe_time;
     time_ndt_matching_pub.publish(time_ndt_matching);
 
+    std_msgs::Bool msg;
+    msg.data = true;
+    fin_pub.publish(msg);
+
+    // Output whole execution time
+    // FILE *fp = fopen("/home/nvidia/hitachi/ndt_time.csv", "a");
+    // fprintf(fp, "%lf\n", exe_time);
+    // fflush(fp);
+    // fclose(fp);
+
     // Set values for /estimate_twist
     estimate_twist_msg.header.stamp = current_scan_time;
     estimate_twist_msg.header.frame_id = "/base_link";
@@ -1616,6 +1629,9 @@ int main(int argc, char** argv)
   time_ndt_matching_pub = nh.advertise<std_msgs::Float32>("/time_ndt_matching", 10);
   ndt_stat_pub = nh.advertise<autoware_msgs::ndt_stat>("/ndt_stat", 10);
   ndt_reliability_pub = nh.advertise<std_msgs::Float32>("/ndt_reliability", 10);
+
+  // add
+  fin_pub = nh.advertise<std_msgs::Bool>("/fin_msg", 10);
 
   // Subscribers
   ros::Subscriber param_sub = nh.subscribe("config/ndt", 10, param_callback);

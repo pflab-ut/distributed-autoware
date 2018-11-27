@@ -81,6 +81,8 @@
 
 #include <autoware_msgs/NDTStat.h>
 
+#include <errno.h>
+
 #define PREDICT_POSE_THRESHOLD 0.5
 
 #define Wa 0.4
@@ -1351,6 +1353,14 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     exe_time = std::chrono::duration_cast<std::chrono::microseconds>(matching_end - matching_start).count() / 1000.0;
     time_ndt_matching.data = exe_time;
     time_ndt_matching_pub.publish(time_ndt_matching);
+
+    FILE *fp = fopen("/home/tomoya/sandbox/time/ndt.csv", "a");
+    if (fp == NULL) {
+        perror("fopen in ndt");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(fp, "%lf\n", exe_time);
+    fclose(fp);
 
     // Set values for /estimate_twist
     estimate_twist_msg.header.stamp = current_scan_time;

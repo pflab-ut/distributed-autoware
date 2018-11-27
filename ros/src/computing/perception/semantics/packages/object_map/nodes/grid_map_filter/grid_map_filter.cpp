@@ -29,6 +29,7 @@
  ********************/
 
 #include "grid_map_filter.h"
+#include <errno.h>
 
 namespace object_map
 {
@@ -68,7 +69,7 @@ namespace object_map
 	void GridMapFilter::OccupancyGridCallback(const nav_msgs::OccupancyGridConstPtr &in_message)
 	{
 		// timer start
-		//auto start = std::chrono::system_clock::now();
+		auto start = std::chrono::system_clock::now();
 
 		std::string original_layer = "original";
 
@@ -101,12 +102,20 @@ namespace object_map
 			DrawCirclesInLayer(map, original_layer, cost_threshold, radius);
 		}
 
+		auto end = std::chrono::system_clock::now();
+
 		// publish grid map as ROS message
 		PublishGridMap(map, grid_map_pub_);
 
 		// timer end
-		//auto end = std::chrono::system_clock::now();
-		//auto usec = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+		auto time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+        FILE *fp = fopen("/home/tomoya/sandbox/time/grid.csv", "a");
+        if (fp == NULL) {
+            perror("fopen in gridmap");
+            exit(EXIT_FAILURE);
+        }
+        fprintf(fp, "%lf\n", time);
+        fclose(fp);
 		//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
 	}
 

@@ -35,6 +35,9 @@
 
 #include <utility>
 
+#include <chrono>
+#include <errno.h>
+
 namespace
 {
 constexpr double HEIGHT_LIMIT = 0.1;  // from sensor
@@ -161,6 +164,9 @@ std::vector<int> filterCostMap(std::vector<int>& cost_map)
 
 void createOccupancyGrid(const sensor_msgs::PointCloud2::ConstPtr &input)
 {
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  start = std::chrono::system_clock::now();
+
   static int count = 0;
   pcl::PointCloud<pcl::PointXYZ> scan;
   pcl::fromROSMsg(*input, scan);
@@ -189,6 +195,16 @@ void createOccupancyGrid(const sensor_msgs::PointCloud2::ConstPtr &input)
   */
 
   og.data.insert(og.data.end(), cost_map.begin(), cost_map.end());
+  end = std::chrono::system_clock::now();
+  double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+  FILE *fp = fopen("/home/tomoya/sandbox/time/p2c.csv", "a");
+  if (fp == NULL) {
+      perror("fopen in p2c");
+      exit(EXIT_FAILURE);
+  }
+  fprintf(fp, "%lf\n", time);
+  fclose(fp);
+
   g_costmap_pub.publish(og);
   og.data.clear();
   count++;

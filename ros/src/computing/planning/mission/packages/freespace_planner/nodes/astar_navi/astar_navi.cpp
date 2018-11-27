@@ -29,6 +29,8 @@
 */
 
 #include "astar_navi.h"
+#include <chrono>
+#include <errno.h>
 
 AstarNavi::AstarNavi() : nh_(), private_nh_("~")
 {
@@ -111,6 +113,8 @@ void AstarNavi::run()
 {
   ros::Rate rate(update_rate_);
 
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+
   nav_msgs::Path empty_path;
   empty_path.header.stamp = ros::Time::now();
   empty_path.header.frame_id = costmap_.header.frame_id;
@@ -125,6 +129,8 @@ void AstarNavi::run()
       continue;
     }
 
+    start = std::chrono::system_clock::now();
+
     // initialize vector for A* search, this runs only once
     astar.initialize(costmap_);
 
@@ -132,11 +138,21 @@ void AstarNavi::run()
     goalPoseCallback(goal_pose_global_);
 
     // execute astar search
-    ros::WallTime start = ros::WallTime::now();
+    // ros::WallTime start = ros::WallTime::now();
     bool result = astar.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
-    ros::WallTime end = ros::WallTime::now();
+    // ros::WallTime end = ros::WallTime::now();
 
-    ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
+    end = std::chrono::system_clock::now();
+    double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+    FILE *fp = fopen("/home/tomoya/sandbox/time/astar.csv", "a");
+    if (fp == NULL) {
+        perror("fopen in astar");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(fp, "%lf\n", time);
+    fclose(fp);
+
+    // ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
 
     if (result)
     {

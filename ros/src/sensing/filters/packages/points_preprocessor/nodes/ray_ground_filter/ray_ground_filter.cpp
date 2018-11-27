@@ -52,6 +52,9 @@
 
 #include "ray_ground_filter.h"
 
+#include <chrono>
+#include <errno.h>
+
 void RayGroundFilter::update_config_params(const autoware_config_msgs::ConfigRayGroundFilter::ConstPtr& param)
 {
   sensor_height_          = param->sensor_height;
@@ -297,6 +300,10 @@ void RayGroundFilter::RemovePointsUpTo(const pcl::PointCloud<pcl::PointXYZI>::Pt
 
 void RayGroundFilter::CloudCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud)
 {
+
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  start = std::chrono::system_clock::now();
+
   pcl::PointCloud<pcl::PointXYZI>::Ptr current_sensor_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*in_sensor_cloud, *current_sensor_cloud_ptr);
 
@@ -333,6 +340,16 @@ void RayGroundFilter::CloudCallback(const sensor_msgs::PointCloud2ConstPtr &in_s
   pcl::PointCloud<pcl::PointXYZI>::Ptr no_ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
 
   ExtractPointsIndices(filtered_cloud_ptr, ground_indices, ground_cloud_ptr, no_ground_cloud_ptr);
+
+  end = std::chrono::system_clock::now();
+  double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+  FILE *fp = fopen("/home/tomoya/sandbox/time/ground.csv", "a");
+  if (fp == NULL) {
+      perror("fopen in ray_ground");
+      exit(EXIT_FAILURE);
+  }
+  fprintf(fp, "%lf\n", time);
+  fclose(fp);
 
   publish_cloud(ground_points_pub_, ground_cloud_ptr, in_sensor_cloud->header);
   publish_cloud(groundless_points_pub_, no_ground_cloud_ptr, in_sensor_cloud->header);

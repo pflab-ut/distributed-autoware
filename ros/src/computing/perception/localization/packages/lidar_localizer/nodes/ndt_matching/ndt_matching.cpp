@@ -156,6 +156,8 @@ static geometry_msgs::PoseStamped predict_pose_imu_odom_msg;
 static ros::Publisher ndt_pose_pub;
 static geometry_msgs::PoseStamped ndt_pose_msg;
 
+static ros::Publisher initPos_pub;
+
 // current_pose is published by vel_pose_mux
 /*
 static ros::Publisher current_pose_pub;
@@ -341,6 +343,22 @@ static void param_callback(const autoware_config_msgs::ConfigNdt::ConstPtr& inpu
     initial_pose.roll = input->roll;
     initial_pose.pitch = input->pitch;
     initial_pose.yaw = input->yaw;
+
+    geometry_msgs::PoseWithCovarianceStamped initPos;
+    ros::Time time_now = ros::Time::now();
+
+    initPos.header.stamp = time_now;
+    initPos.header.frame_id = "world";
+
+    initPos.pose.pose.x = initial_pose.x;
+    initPos.pose.pose.y = initial_pose.y;
+    initPos.pose.pose.z = initial_pose.z;
+    
+    tf2::Quaternion qt;
+    qt.setRPY(initial_pose.rall, initial_pose.pitch, initial_pose.yaw);
+    initPos.pose.orientation = qt;
+
+    initPos_pub(initPos);
 
     if (_use_local_transform == true)
     {
@@ -1627,6 +1645,7 @@ int main(int argc, char** argv)
   ndt_stat_pub = nh.advertise<autoware_msgs::NDTStat>("/ndt_stat", 10);
   ndt_reliability_pub = nh.advertise<std_msgs::Float32>("/ndt_reliability", 10);
 
+  initPos_pub = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 10);
   // Subscribers
   ros::Subscriber param_sub = nh.subscribe("config/ndt", 10, param_callback);
   ros::Subscriber gnss_sub = nh.subscribe("gnss_pose", 10, gnss_callback);

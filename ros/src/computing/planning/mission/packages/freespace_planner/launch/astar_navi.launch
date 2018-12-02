@@ -1,12 +1,12 @@
 <launch>
 
   <!-- Navi configurations -->
-  <arg name="costmap_topic" default="grid_map_filter_visualization/dist_wayarea" />
+  <arg name="costmap_topic" default="grid_map_filter_visualization/distance_transform" />
   <arg name="waypoints_velocity" default="5.0" />
   <arg name="update_rate" default="1.0" />
 
   <!-- A* search configurations -->
-  <arg name="use_back" default="true" />
+  <arg name="use_back" default="false" />
   <arg name="use_potential_heuristic" default="true" />
   <arg name="use_wavefront_heuristic" default="false" />
   <arg name="time_limit" default="5000.0" />

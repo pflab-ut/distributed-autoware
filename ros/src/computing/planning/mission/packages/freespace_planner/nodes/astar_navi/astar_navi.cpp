@@ -53,6 +53,7 @@ AstarNavi::~AstarNavi()
 
 void AstarNavi::costmapCallback(const nav_msgs::OccupancyGrid& msg)
 {
+  std::cout << "costmapCallback" << std::endl;
   costmap_ = msg;
   tf::poseMsgToTF(costmap_.info.origin, local2costmap_);
 
@@ -61,6 +62,7 @@ void AstarNavi::costmapCallback(const nav_msgs::OccupancyGrid& msg)
 
 void AstarNavi::currentPoseCallback(const geometry_msgs::PoseStamped& msg)
 {
+  std::cout << "currentPoseCallback" << std::endl;
   if (!costmap_initialized_)
   {
     return;
@@ -77,6 +79,7 @@ void AstarNavi::currentPoseCallback(const geometry_msgs::PoseStamped& msg)
 
 void AstarNavi::goalPoseCallback(const geometry_msgs::PoseStamped& msg)
 {
+  std::cout << "goalPoseCallback" << std::endl;
   if (!costmap_initialized_)
   {
     return;
@@ -121,10 +124,16 @@ void AstarNavi::run()
 
   while (ros::ok())
   {
+    std::cout << "spinOnce" << std::endl;
+    std::cout << "costmap_init: " << costmap_initialized_ << std::endl;
+    std::cout << "current_pose_init: " << current_pose_initialized_ << std::endl;
+    std::cout << "goal_pose_init: " << goal_pose_initialized_ << std::endl;
+
     ros::spinOnce();
 
     if (!costmap_initialized_ || !current_pose_initialized_ || !goal_pose_initialized_)
     {
+      std::cout << "sleep" << std::endl;
       rate.sleep();
       continue;
     }
@@ -137,19 +146,24 @@ void AstarNavi::run()
     // update local goal pose
     goalPoseCallback(goal_pose_global_);
 
+    end = std::chrono::system_clock::now();
+    double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+
+    start = std::chrono::system_clock::now();
+
     // execute astar search
     // ros::WallTime start = ros::WallTime::now();
     bool result = astar.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
     // ros::WallTime end = ros::WallTime::now();
 
     end = std::chrono::system_clock::now();
-    double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+    double time1 = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
     FILE *fp = fopen("/home/tomoya/sandbox/time/astar.csv", "a");
     if (fp == NULL) {
         perror("fopen in astar");
         exit(EXIT_FAILURE);
     }
-    fprintf(fp, "%lf\n", time);
+    fprintf(fp, "%lf,%lf\n", time, time1);
     fclose(fp);
 
     // ROS_INFO("Astar planning: %f [s]", (end - start).toSec());

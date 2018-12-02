@@ -4,7 +4,7 @@
   <arg name="map_topic" default="/realtime_cost_map" />
   <arg name="dist_transform_distance" default="2.0" />
   <arg name="use_dist_transform" default="true" />
-  <arg name="use_wayarea" default="true" />
+  <arg name="use_wayarea" default="false" />
   <arg name="use_fill_circle" default="true" />
   <arg name="fill_circle_cost_threshold" default="20" /> <!-- 0 ~ 100 -->
   <arg name="circle_radius" default="1.7" />

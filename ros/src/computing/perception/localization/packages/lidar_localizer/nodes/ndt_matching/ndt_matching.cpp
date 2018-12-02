@@ -344,21 +344,22 @@ static void param_callback(const autoware_config_msgs::ConfigNdt::ConstPtr& inpu
     initial_pose.pitch = input->pitch;
     initial_pose.yaw = input->yaw;
 
-    geometry_msgs::PoseWithCovarianceStamped initPos;
-    ros::Time time_now = ros::Time::now();
+    // geometry_msgs::PoseWithCovarianceStamped initPos;
+    // ros::Time time_now = ros::Time::now();
 
-    initPos.header.stamp = time_now;
-    initPos.header.frame_id = "world";
+    // initPos.header.stamp = time_now;
+    // initPos.header.frame_id = "world";
 
-    initPos.pose.pose.x = initial_pose.x;
-    initPos.pose.pose.y = initial_pose.y;
-    initPos.pose.pose.z = initial_pose.z;
-    
-    tf2::Quaternion qt;
-    qt.setRPY(initial_pose.rall, initial_pose.pitch, initial_pose.yaw);
-    initPos.pose.orientation = qt;
+    // initPos.pose.pose.position.x = initial_pose.x;
+    // initPos.pose.pose.position.y = initial_pose.y;
+    // initPos.pose.pose.position.z = initial_pose.z;
+    // 
 
-    initPos_pub(initPos);
+    // tf::Quaternion qt;
+    // qt.setRPY(initial_pose.roll, initial_pose.pitch, initial_pose.yaw);
+    // quaternionTFToMsg(qt, initPos.pose.pose.orientation);
+
+    // initPos_pub.publish(initPos);
 
     if (_use_local_transform == true)
     {

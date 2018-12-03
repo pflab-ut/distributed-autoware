@@ -74,9 +74,14 @@ add_executable(ndt_mapping nodes/ndt_mapping/ndt_mapping.cpp)
 target_link_libraries(ndt_mapping ${catkin_LIBRARIES})
 add_dependencies(ndt_mapping ${catkin_EXPORTED_TARGETS})
 
+add_executable(gpu_memory_manager nodes/gpu_memory_manager/gpu_memory_manager.cpp)
+target_link_libraries(gpu_memory_manager ${catkin_LIBRARIES})
+add_dependencies(gpu_memory_manager ${catkin_EXPORTED_TARGETS})
+
 if (CUDA_FOUND)
     target_include_directories(ndt_matching PRIVATE ${CUDA_INCLUDE_DIRS})
     target_include_directories(ndt_mapping PRIVATE ${CUDA_INCLUDE_DIRS})
+    target_include_directories(gpu_memory_manager PRIVATE ${CUDA_INCLUDE_DIRS})
 endif ()
 
 

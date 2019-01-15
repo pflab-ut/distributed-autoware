@@ -1354,7 +1354,7 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     time_ndt_matching.data = exe_time;
     time_ndt_matching_pub.publish(time_ndt_matching);
 
-    FILE *fp = fopen("/home/tomoya/sandbox/time/ndt.csv", "a");
+    FILE *fp = fopen("/home/nvidia/sandbox/time/ndt.csv", "a");
     if (fp == NULL) {
         perror("fopen in ndt");
         exit(EXIT_FAILURE);

@@ -144,7 +144,7 @@ void AstarNavi::run()
 
     end = std::chrono::system_clock::now();
     double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-    FILE *fp = fopen("/home/tomoya/sandbox/time/astar.csv", "a");
+    FILE *fp = fopen("/home/nvidia/sandbox/time/astar.csv", "a");
     if (fp == NULL) {
         perror("fopen in astar");
         exit(EXIT_FAILURE);

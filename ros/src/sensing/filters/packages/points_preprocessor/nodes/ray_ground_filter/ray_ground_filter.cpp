@@ -343,7 +343,7 @@ void RayGroundFilter::CloudCallback(const sensor_msgs::PointCloud2ConstPtr &in_s
 
   end = std::chrono::system_clock::now();
   double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-  FILE *fp = fopen("/home/tomoya/sandbox/time/ground.csv", "a");
+  FILE *fp = fopen("/home/nvidia/sandbox/time/ground.csv", "a");
   if (fp == NULL) {
       perror("fopen in ray_ground");
       exit(EXIT_FAILURE);

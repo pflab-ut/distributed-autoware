@@ -126,7 +126,7 @@ static void scan_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
 
   end = std::chrono::system_clock::now();
   double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-  FILE *fp = fopen("/home/tomoya/sandbox/time/voxel.csv", "a");
+  FILE *fp = fopen("/home/nvidia/sandbox/time/voxel.csv", "a");
   if (fp == NULL) {
     perror("fopen in voxelgrid");
     exit(EXIT_FAILURE);

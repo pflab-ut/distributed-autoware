@@ -32,19 +32,38 @@
 #include <chrono>
 #include <errno.h>
 
+int cnt = 0;
+int index_x = 0;
+int index_y = 0;
+int **sum;
+
 AstarNavi::AstarNavi() : nh_(), private_nh_("~")
 {
   private_nh_.param<double>("waypoints_velocity", waypoints_velocity_, 5.0);
   private_nh_.param<double>("update_rate", update_rate_, 1.0);
+  private_nh_.param<int>("block_number", N, 11);
+  private_nh_.param<double>("block_range", RANGE, 3.0);
+  private_nh_.param<int>("iteration", ITER, 10);
+  private_nh_.param<int>("area_search", area_search_, 0);
 
   lane_pub_ = nh_.advertise<autoware_msgs::LaneArray>("lane_waypoints_array", 1, true);
   costmap_sub_ = nh_.subscribe("costmap", 1, &AstarNavi::costmapCallback, this);
   current_pose_sub_ = nh_.subscribe("current_pose", 1, &AstarNavi::currentPoseCallback, this);
   goal_pose_sub_ = nh_.subscribe("move_base_simple/goal", 1, &AstarNavi::goalPoseCallback, this);
 
+  visual_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("visual_hitachi_pose", 1);
+
   costmap_initialized_ = false;
   current_pose_initialized_ = false;
   goal_pose_initialized_ = false;
+
+  sum = (int**)malloc(sizeof(int*)*N);
+  for (int i = 0; i < N; i++) {
+    sum[i] = (int*)malloc(sizeof(int)*N);
+    for (int j = 0; j < N; j++) {
+      sum[i][j] = 0;
+    }
+  }
 }
 
 AstarNavi::~AstarNavi()
@@ -119,6 +138,12 @@ void AstarNavi::run()
   empty_path.header.stamp = ros::Time::now();
   empty_path.header.frame_id = costmap_.header.frame_id;
 
+  FILE *fp = fopen("/home/nvidia/astar_prob.csv", "w");
+  if (fp == NULL) {
+    fprintf(stderr, "fopen error astar_prob.csv\n");
+    exit(EXIT_FAILURE);
+  }
+
   while (ros::ok())
   {
     ros::spinOnce();
@@ -129,7 +154,7 @@ void AstarNavi::run()
       continue;
     }
 
-    start = std::chrono::system_clock::now();
+    // start = std::chrono::system_clock::now();
 
     // initialize vector for A* search, this runs only once
     astar.initialize(costmap_);
@@ -137,33 +162,74 @@ void AstarNavi::run()
     // update local goal pose
     goalPoseCallback(goal_pose_global_);
 
+    geometry_msgs::PoseStamped m_pose;
+    m_pose.header = current_pose_local_.header;
+    m_pose.pose.position.x = goal_pose_local_.pose.position.x + RANGE * (index_x - (N/2 + 1));
+    m_pose.pose.position.y = goal_pose_local_.pose.position.y + RANGE * (index_y - (N/2 + 1));
+    m_pose.pose.position.z = goal_pose_local_.pose.position.z;
+    m_pose.pose.orientation.x = goal_pose_local_.pose.orientation.x;
+    m_pose.pose.orientation.y = goal_pose_local_.pose.orientation.y;
+    m_pose.pose.orientation.z = goal_pose_local_.pose.orientation.z;
+    m_pose.pose.orientation.w = goal_pose_local_.pose.orientation.w;
+
+    start = std::chrono::system_clock::now();
     // execute astar search
     // ros::WallTime start = ros::WallTime::now();
-    bool result = astar.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
+    bool result;
+    if (area_search_) 
+      result = astar.makePlan(current_pose_local_.pose, m_pose.pose);
+    else
+      result = astar.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
+
     // ros::WallTime end = ros::WallTime::now();
 
     end = std::chrono::system_clock::now();
     double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-    FILE *fp = fopen("/home/nvidia/sandbox/time/astar.csv", "a");
-    if (fp == NULL) {
-        perror("fopen in astar");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(fp, "%lf\n", time);
-    fclose(fp);
+    // FILE *fp = fopen("/home/nvidia/sandbox/time/astar.csv", "a");
+    // if (fp == NULL) {
+    //     perror("fopen in astar");
+    //     exit(EXIT_FAILURE);
+    // }
+    // fprintf(fp, "%lf\n", time);
+    // fclose(fp);
 
     // ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
+    std::cout << "A* time: " << time << std::endl;
+    if (area_search_) visual_pub_.publish(m_pose);
+    else visual_pub_.publish(goal_pose_local_);
 
     if (result)
     {
       ROS_INFO("Found GOAL!");
       publishWaypoints(astar.getPath(), waypoints_velocity_);
+      sum[index_y][index_x] += 1;
     }
     else
     {
       ROS_INFO("Can't find goal...");
       publishStopWaypoints();
     }
+
+    std::cout << "cnt: " << cnt << ", index_x: " << index_x << ", index_y: " << index_y << std::endl;
+
+    if (index_x == N-1 && (cnt % ITER) == (ITER - 1)) {
+      for (int i = 0; i < N; i++) {
+        fprintf(fp, "%lf,", (double)sum[index_y][i] / (double)ITER);
+      }
+      fprintf(fp, "\n");
+      fflush(fp);
+      std::cout << "result output." << std::endl;
+      if (index_y == N-1) {
+        fclose(fp);
+	std::cout << "finished." << std::endl;
+	exit(EXIT_SUCCESS);
+      }
+    }
+
+    cnt++;
+    index_x = cnt / ITER;
+    index_y = index_x / N;
+    index_x = index_x % N;
 
     astar.reset();
     rate.sleep();

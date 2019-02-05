@@ -208,7 +208,7 @@ static std::chrono::time_point<std::chrono::system_clock> matching_start, matchi
 static ros::Publisher time_ndt_matching_pub;
 static std_msgs::Float32 time_ndt_matching;
 
-static int _queue_size = 1000;
+static int _queue_size = 10;
 
 static ros::Publisher ndt_stat_pub;
 static autoware_msgs::NDTStat ndt_stat_msg;

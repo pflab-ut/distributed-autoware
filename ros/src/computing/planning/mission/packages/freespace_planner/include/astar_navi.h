@@ -58,6 +58,8 @@ private:
   ros::Subscriber goal_pose_sub_;
   tf::TransformListener tf_listener_;
 
+  ros::Publisher visual_pub_;
+
   // params
   double waypoints_velocity_;   // constant velocity on planned waypoints [km/h]
   double update_rate_;          // replanning and publishing rate [Hz]
@@ -74,6 +76,11 @@ private:
   bool costmap_initialized_;
   bool current_pose_initialized_;
   bool goal_pose_initialized_;
+
+  int N;
+  double RANGE;
+  int ITER;
+  int area_search_;
 
   // functions, callback
   void costmapCallback(const nav_msgs::OccupancyGrid& msg);

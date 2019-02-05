@@ -350,16 +350,20 @@ bool AstarSearch::search()
 {
   ros::WallTime begin = ros::WallTime::now();
 
+  int cnt = 0;
   // Start A* search
   // If the openlist is empty, search failed
   while (!openlist_.empty())
   {
+    cnt++;
+
     // Check time and terminate if the search reaches the time limit
     ros::WallTime now = ros::WallTime::now();
     double msec = (now - begin).toSec() * 1000.0;
     if (msec > time_limit_)
     {
-      // ROS_WARN("Exceed time limit of %lf [ms]", time_limit_);
+      ROS_WARN("Exceed time limit of %lf [ms]", time_limit_);
+      std::cout << "A* loop: " << cnt << std::endl;
       return false;
     }
 
@@ -376,6 +380,7 @@ bool AstarSearch::search()
     {
       // ROS_INFO("Search time: %lf [msec]", (now - begin).toSec() * 1000.0);
       setPath(top_sn);
+      std::cout << "A* loop: " << cnt << std::endl;
       return true;
     }
 

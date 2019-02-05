@@ -312,6 +312,8 @@ void download_map()
 
 sensor_msgs::PointCloud2 create_pcd(const geometry_msgs::Point& p)
 {
+    std::cout << "create_pcd true" << std::endl;
+    std::cout << "x: " << p.x << ", y: " << p.y << std::endl;
 	sensor_msgs::PointCloud2 pcd, part;
 	std::unique_lock<std::mutex> lock(downloaded_areas_mtx);
 	for (const Area& area : downloaded_areas) {
@@ -325,6 +327,10 @@ sensor_msgs::PointCloud2 create_pcd(const geometry_msgs::Point& p)
 				pcd.data.insert(pcd.data.end(), part.data.begin(), part.data.end());
 			}
 		}
+        else {
+            std::cout << "not in area" << std::endl;
+            std::cout << area.path << ", margin: " << margin << std::endl;
+        }
 	}
 
 	return pcd;
@@ -332,6 +338,7 @@ sensor_msgs::PointCloud2 create_pcd(const geometry_msgs::Point& p)
 
 sensor_msgs::PointCloud2 create_pcd(const std::vector<std::string>& pcd_paths, int* ret_err = NULL)
 {
+    std::cout << "create_pcd" << std::endl;
 	sensor_msgs::PointCloud2 pcd, part;
 	for (const std::string& path : pcd_paths) {
 		// Following outputs are used for progress bar of Runtime Manager.
@@ -358,6 +365,7 @@ sensor_msgs::PointCloud2 create_pcd(const std::vector<std::string>& pcd_paths, i
 
 void publish_pcd(sensor_msgs::PointCloud2 pcd, const int* errp = NULL)
 {
+    std::cout << "publish_pcd" << std::endl;
 	if (pcd.width != 0) {
 		pcd.header.frame_id = "map";
 		pcd_pub.publish(pcd);
@@ -367,10 +375,14 @@ void publish_pcd(sensor_msgs::PointCloud2 pcd, const int* errp = NULL)
 			stat_pub.publish(stat_msg);
 		}
 	}
+    else {
+        std::cout << "pcd.width == 0" << std::endl;
+    }
 }
 
 void publish_gnss_pcd(const geometry_msgs::PoseStamped& msg)
 {
+    std::cout << "publish_gnss_pcd" << std::endl;
 	ros::Time now = ros::Time::now();
 	if (((now - current_time).toSec() * 1000) < fallback_rate)
 		return;
@@ -386,6 +398,7 @@ void publish_gnss_pcd(const geometry_msgs::PoseStamped& msg)
 
 void publish_current_pcd(const geometry_msgs::PoseStamped& msg)
 {
+    std::cout << "publish_current_pcd." << std::endl;
 	ros::Time now = ros::Time::now();
 	if (((now - current_time).toSec() * 1000) < update_rate)
 		return;
@@ -399,6 +412,7 @@ void publish_current_pcd(const geometry_msgs::PoseStamped& msg)
 
 void publish_dragged_pcd(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
+    std::cout << "initialpose recieved." << std::endl;
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
 	try {
@@ -465,6 +479,8 @@ int main(int argc, char **argv)
 
 	ros::NodeHandle n;
 
+    std::cout << "points_map_loader start" << std::endl;
+    std::cout << "------------------------------" << std::endl;
 	if (argc < 3) {
 		print_usage();
 		return EXIT_FAILURE;

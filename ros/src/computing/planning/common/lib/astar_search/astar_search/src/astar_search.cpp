@@ -212,13 +212,13 @@ bool AstarSearch::makePlan(const geometry_msgs::Pose& start_pose, const geometry
 {
   if (!setStartNode(start_pose))
   {
-    // ROS_WARN_STREAM("Invalid start pose");
+    ROS_WARN_STREAM("Invalid start pose");
     return false;
   }
 
   if (!setGoalNode(goal_pose))
   {
-    // ROS_WARN_STREAM("Invalid goal pose");
+    ROS_WARN_STREAM("Invalid goal pose");
     return false;
   }
 
@@ -363,7 +363,6 @@ bool AstarSearch::search()
     if (msec > time_limit_)
     {
       ROS_WARN("Exceed time limit of %lf [ms]", time_limit_);
-      std::cout << "A* loop: " << cnt << std::endl;
       return false;
     }
 
@@ -474,7 +473,7 @@ bool AstarSearch::search()
   }
 
   // Failed to find path
-  // ROS_INFO("Open list is empty...");
+  ROS_INFO("Open list is empty...");
   return false;
 }
 

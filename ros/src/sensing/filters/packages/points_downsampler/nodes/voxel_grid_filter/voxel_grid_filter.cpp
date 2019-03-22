@@ -103,8 +103,6 @@ static void scan_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     pcl::toROSMsg(*scan_ptr, filtered_msg);
   }
 
-  filter_end = std::chrono::system_clock::now();
-
   filtered_msg.header = input->header;
   filtered_points_pub.publish(filtered_msg);
 
@@ -123,16 +121,6 @@ static void scan_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
   points_downsampler_info_msg.original_ring_size = 0;
   points_downsampler_info_msg.filtered_ring_size = 0;
   points_downsampler_info_msg.exe_time = std::chrono::duration_cast<std::chrono::microseconds>(filter_end - filter_start).count() / 1000.0;
-
-  end = std::chrono::system_clock::now();
-  double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-  FILE *fp = fopen("/home/nvidia/sandbox/time/voxel.csv", "a");
-  if (fp == NULL) {
-    perror("fopen in voxelgrid");
-    exit(EXIT_FAILURE);
-  }
-  fprintf(fp, "%lf\n", time);
-  fclose(fp);
 
   points_downsampler_info_pub.publish(points_downsampler_info_msg);
 

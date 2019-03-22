@@ -109,13 +109,6 @@ namespace object_map
 
 		// timer end
 		auto time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-        FILE *fp = fopen("/home/nvidia/sandbox/time/grid.csv", "a");
-        if (fp == NULL) {
-            perror("fopen in gridmap");
-            exit(EXIT_FAILURE);
-        }
-        fprintf(fp, "%lf\n", time);
-        fclose(fp);
 		//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
 	}
 

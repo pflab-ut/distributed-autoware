@@ -1373,14 +1373,6 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     time_ndt_matching.data = exe_time;
     time_ndt_matching_pub.publish(time_ndt_matching);
 
-    FILE *fp = fopen("/home/nvidia/sandbox/time/ndt.csv", "a");
-    if (fp == NULL) {
-        perror("fopen in ndt");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(fp, "%lf\n", exe_time);
-    fclose(fp);
-
     // Set values for /estimate_twist
     estimate_twist_msg.header.stamp = current_scan_time;
     estimate_twist_msg.header.frame_id = "/base_link";

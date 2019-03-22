@@ -35,7 +35,7 @@
 int cnt = 0;
 int index_x = 0;
 int index_y = 0;
-int **sum;
+double **sum;
 
 AstarNavi::AstarNavi() : nh_(), private_nh_("~")
 {
@@ -57,9 +57,9 @@ AstarNavi::AstarNavi() : nh_(), private_nh_("~")
   current_pose_initialized_ = false;
   goal_pose_initialized_ = false;
 
-  sum = (int**)malloc(sizeof(int*)*N);
+  sum = (double**)malloc(sizeof(double*)*N);
   for (int i = 0; i < N; i++) {
-    sum[i] = (int*)malloc(sizeof(int)*N);
+    sum[i] = (double*)malloc(sizeof(double)*N);
     for (int j = 0; j < N; j++) {
       sum[i][j] = 0;
     }
@@ -141,24 +141,31 @@ void AstarNavi::run()
   empty_path.header.stamp = ros::Time::now();
   empty_path.header.frame_id = costmap_.header.frame_id;
 
-  FILE *fp = fopen("/home/nvidia/astar_prob.csv", "w");
+  FILE *fp = fopen("/home/tomoya/sandbox/astar_prob.csv", "w");
   if (fp == NULL) {
     fprintf(stderr, "fopen error astar_prob.csv\n");
     exit(EXIT_FAILURE);
   }
 
+  double **time_array;
+  bool **result_array;
+  time_array = (double**)malloc(sizeof(double*)*N*N);
+  result_array = (bool**)malloc(sizeof(bool*)*N*N);
+  for (int i = 0; i < N * N; i++) 
+  {
+    time_array[i] = (double*)malloc(sizeof(double)*ITER);
+    result_array[i] = (bool*)malloc(sizeof(bool)*ITER);
+  }
+
+  int area_index, loop_index;
+  
   while (ros::ok())
   {
-    std::cout << "spinOnce" << std::endl;
-    std::cout << "costmap_init: " << costmap_initialized_ << std::endl;
-    std::cout << "current_pose_init: " << current_pose_initialized_ << std::endl;
-    std::cout << "goal_pose_init: " << goal_pose_initialized_ << std::endl;
-
     ros::spinOnce();
 
     if (!costmap_initialized_ || !current_pose_initialized_ || !goal_pose_initialized_)
     {
-      std::cout << "sleep" << std::endl;
+      std::cout << "costmap: " << costmap_initialized_ << ", current_pose: " << current_pose_initialized_ << ", goal_pose: " << goal_pose_initialized_ << std::endl;
       rate.sleep();
       continue;
     }
@@ -181,9 +188,6 @@ void AstarNavi::run()
     m_pose.pose.orientation.z = goal_pose_local_.pose.orientation.z;
     m_pose.pose.orientation.w = goal_pose_local_.pose.orientation.w;
 
-    end = std::chrono::system_clock::now();
-    double time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-
     start = std::chrono::system_clock::now();
 
     // execute astar search
@@ -199,16 +203,14 @@ void AstarNavi::run()
     end = std::chrono::system_clock::now();
 
     double time1 = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
-    FILE *fp = fopen("/home/tomoya/sandbox/time/astar.csv", "a");
-    if (fp == NULL) {
-        perror("fopen in astar");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(fp, "%lf,%lf\n", time, time1);
-    fclose(fp);
+
+    area_index = index_x + index_y * N;
+    loop_index = cnt % ITER;
+
+    time_array[area_index][loop_index] = time1; 
+    result_array[area_index][loop_index] = result;
 
     // ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
-    std::cout << "A* time: " << time << std::endl;
     if (area_search_) visual_pub_.publish(m_pose);
     else visual_pub_.publish(goal_pose_local_);
 
@@ -216,7 +218,7 @@ void AstarNavi::run()
     {
       ROS_INFO("Found GOAL!");
       publishWaypoints(astar.getPath(), waypoints_velocity_);
-      sum[index_y][index_x] += 1;
+      sum[index_y][index_x] += time1;
     }
     else
     {
@@ -226,18 +228,42 @@ void AstarNavi::run()
 
     std::cout << "cnt: " << cnt << ", index_x: " << index_x << ", index_y: " << index_y << std::endl;
 
-    if (index_x == N-1 && (cnt % ITER) == (ITER - 1)) {
-      for (int i = 0; i < N; i++) {
-        fprintf(fp, "%lf,", (double)sum[index_y][i] / (double)ITER);
+    // if (index_x == N-1 && loop_index == (ITER - 1)) {
+    //   for (int i = 0; i < N; i++) {
+    //     fprintf(fp, "%lf,", sum[index_y][i] / (double)ITER);
+    //   }
+    //   fprintf(fp, "\n");
+    //   fflush(fp);
+    //   std::cout << "result output." << std::endl;
+    //   if (index_y == N-1) {
+    //     fclose(fp);
+	  //     std::cout << "finished." << std::endl;
+	  //     exit(EXIT_SUCCESS);
+    //   }
+    // }
+
+    if (index_x == N-1 && index_y == N-1 && loop_index == (ITER - 1))
+    {
+      for (int i = 0; i < ITER; i++)
+      {
+        std::cout << "writing " << i << "th array.\r";
+        for (int j = 0; j < N*N; j++)
+        {
+          fprintf(fp, "%lf,", time_array[j][i]);
+        }
+        for (int j = 0; j < N*N; j++)
+        {
+          fprintf(fp, "%d,", result_array[j][i]);
+        }
+        fprintf(fp, "\n");
+        fflush(fp);
       }
-      fprintf(fp, "\n");
+
+      std::cout << std::endl << "finish writing." << std::endl;
       fflush(fp);
-      std::cout << "result output." << std::endl;
-      if (index_y == N-1) {
-        fclose(fp);
-	std::cout << "finished." << std::endl;
-	exit(EXIT_SUCCESS);
-      }
+      fclose(fp);
+
+      exit(EXIT_SUCCESS);
     }
 
     cnt++;

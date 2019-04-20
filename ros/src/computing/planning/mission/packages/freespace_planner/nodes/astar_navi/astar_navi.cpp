@@ -30,6 +30,8 @@
 
 #include "astar_navi.h"
 
+#include <chrono>
+
 AstarNavi::AstarNavi() : nh_(), private_nh_("~")
 {
   private_nh_.param<double>("waypoints_velocity", waypoints_velocity_, 5.0);
@@ -115,6 +117,11 @@ void AstarNavi::run()
   empty_path.header.stamp = ros::Time::now();
   empty_path.header.frame_id = costmap_.header.frame_id;
 
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  double time[100];
+  int cnt = 0;
+  int ret[100];
+
   while (ros::ok())
   {
     ros::spinOnce();
@@ -132,21 +139,38 @@ void AstarNavi::run()
     goalPoseCallback(goal_pose_global_);
 
     // execute astar search
-    ros::WallTime start = ros::WallTime::now();
+    // ros::WallTime start = ros::WallTime::now();
+    start = std::chrono::system_clock::now();
     bool result = astar.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
-    ros::WallTime end = ros::WallTime::now();
+    // ros::WallTime end = ros::WallTime::now();
+    end = std::chrono::system_clock::now();
 
-    ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
+    time[cnt] = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0;
+    cnt++;
+
+    ROS_INFO("Astar planning: %f [ms], Count: %d", time[cnt-1], cnt);
 
     if (result)
     {
       ROS_INFO("Found GOAL!");
       publishWaypoints(astar.getPath(), waypoints_velocity_);
+      ret[cnt] = 1;
     }
     else
     {
       ROS_INFO("Can't find goal...");
       publishStopWaypoints();
+    }
+
+    if (cnt == 100)
+    {
+      FILE *fp = fopen("/home/tomoya/astar_time.csv", "w");
+      for (int i = 0; i < 100; i++)
+      {
+        fprintf(fp, "%lf,%d\n", time[i], ret[i]);
+      }
+      fclose(fp);
+      exit(0);
     }
 
     astar.reset();

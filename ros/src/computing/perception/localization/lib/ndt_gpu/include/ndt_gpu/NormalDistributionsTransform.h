@@ -7,6 +7,7 @@
 #include "common.h"
 #include "VoxelGrid.h"
 #include "Eigen/Geometry"
+#include <pcl/point_types.h>
 
 namespace gpu {
 class GNormalDistributionsTransform: public GRegistration {
@@ -37,6 +38,8 @@ public:
 
 	/* Compute and get fitness score */
 	double getFitnessScore(double max_range = DBL_MAX);
+
+	void getHandle(unsigned char *handle);
 
 	~GNormalDistributionsTransform();
 
@@ -98,6 +101,8 @@ private:
 	double trans_probability_;
 
 	int real_iterations_;
+
+	bool empty_handle_;
 
 
 	GVoxelGrid voxel_grid_;

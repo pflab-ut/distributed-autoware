@@ -311,6 +311,63 @@ void GRegistration::setInputSource(pcl::PointCloud<pcl::PointXYZ>::Ptr input)
 	}
 }
 
+void GRegistration::setInputSource2(int points_size)
+{
+	//Convert point cloud to float x, y, z
+	if (points_size > 0) {
+		points_number_ = points_size;
+		std::cout << "---points_number: " << points_number_ << std::endl;
+
+		if (x_ != NULL) {
+			checkCudaErrors(cudaFree(x_));
+			x_ = NULL;
+		}
+
+		if (y_ != NULL) {
+			checkCudaErrors(cudaFree(y_));
+			y_ = NULL;
+		}
+
+		if (z_ != NULL) {
+			checkCudaErrors(cudaFree(z_));
+			z_ = NULL;
+		}
+
+		checkCudaErrors(cudaMalloc(&x_, sizeof(float) * points_number_));
+		checkCudaErrors(cudaMalloc(&y_, sizeof(float) * points_number_));
+		checkCudaErrors(cudaMalloc(&z_, sizeof(float) * points_number_));
+
+		int block_x = (points_number_ > BLOCK_SIZE_X) ? BLOCK_SIZE_X : points_number_;
+		int grid_x = (points_number_ - 1) / block_x + 1;
+
+		convertInput<pcl::PointXYZ><<<grid_x, block_x>>>(raw_data_, x_, y_, z_, points_number_);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
+
+		if (trans_x_ != NULL) {
+			checkCudaErrors(cudaFree(trans_x_));
+			trans_x_ = NULL;
+		}
+
+		if (trans_y_ != NULL) {
+			checkCudaErrors(cudaFree(trans_y_));
+			trans_y_ = NULL;
+		}
+
+		if (trans_z_ != NULL) {
+			checkCudaErrors(cudaFree(trans_z_));
+			trans_z_ = NULL;
+		}
+
+		checkCudaErrors(cudaMalloc(&trans_x_, sizeof(float) * points_number_));
+		checkCudaErrors(cudaMalloc(&trans_y_, sizeof(float) * points_number_));
+		checkCudaErrors(cudaMalloc(&trans_z_, sizeof(float) * points_number_));
+
+		checkCudaErrors(cudaMemcpy(trans_x_, x_, sizeof(float) * points_number_, cudaMemcpyDeviceToDevice));
+		checkCudaErrors(cudaMemcpy(trans_y_, y_, sizeof(float) * points_number_, cudaMemcpyDeviceToDevice));
+		checkCudaErrors(cudaMemcpy(trans_z_, z_, sizeof(float) * points_number_, cudaMemcpyDeviceToDevice));
+	}
+}
 
 
 //Set input MAP data

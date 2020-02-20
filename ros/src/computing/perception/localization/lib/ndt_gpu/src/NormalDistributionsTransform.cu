@@ -37,6 +37,8 @@ GNormalDistributionsTransform::GNormalDistributionsTransform()
 	dh_ang_ = MatrixDevice(45, 1);
 
 	real_iterations_ = 0;
+
+	empty_handle_ = true;
 }
 
 GNormalDistributionsTransform::GNormalDistributionsTransform(const GNormalDistributionsTransform &other)
@@ -1691,5 +1693,20 @@ double GNormalDistributionsTransform::getFitnessScore(double max_range)
 
 	return DBL_MAX;
 }
+
+void GNormalDistributionsTransform::getHandle(unsigned char *handle)
+{
+	if (empty_handle_)
+	{
+		cudaIpcMemHandle_t my_handle;
+
+		memcpy((unsigned char*)&my_handle, handle, sizeof(my_handle));
+		checkCudaErrors(cudaIpcOpenMemHandle((void**)&raw_data_, my_handle, cudaIpcMemLazyEnablePeerAccess));
+
+		std::cout << "[NDT] opened shared GPU memory" << std::endl;
+
+		empty_handle_ = false;
+	}
+} 
 
 }

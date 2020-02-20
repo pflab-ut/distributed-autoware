@@ -34,6 +34,7 @@ public:
 	 * Copy input points from the main memory to the GPU memory */
 	void setInputSource(pcl::PointCloud<pcl::PointXYZI>::Ptr input);
 	void setInputSource(pcl::PointCloud<pcl::PointXYZ>::Ptr input);
+	void setInputSource2(int points_size);
 
 	/* Set input reference map point cloud.
 	 * Copy input points from the main memory to the GPU memory */
@@ -69,6 +70,7 @@ protected:
 	// Reference map point
 	float *target_x_, *target_y_, *target_z_;
 	int target_points_number_;
+	pcl::PointXYZ *raw_data_;
 
 	bool is_copied_;
 };
